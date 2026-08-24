@@ -46,6 +46,12 @@ create type public.poll_kind as enum ('meeting', 'retreat');
 
 create type public.poll_status as enum ('open', 'closed');
 
+-- Como se capturo el puntaje de cierre:
+--   self = cada uno desde su celular, anonimo para el resto
+--   room = dicho en voz alta en la sala y anotado por quien toma nota; ya es
+--          publico, asi que se muestra con nombre
+create type public.feedback_source as enum ('self', 'room');
+
 -- -----------------------------------------------------------------------------
 -- updated_at automatico
 -- -----------------------------------------------------------------------------

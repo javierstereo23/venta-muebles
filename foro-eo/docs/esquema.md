@@ -43,7 +43,7 @@ erDiagram
 | `parking_lot_items` | Titular publicado, tipo, cuadrante, peso. | Todo el foro |
 | `icebreaker_prompts` / `icebreaker_draws` | Catálogo y sorteos sin repetición. | Todo el foro |
 | `date_polls` / `date_poll_options` / `date_poll_votes` | Votación de fecha de reunión y de retreat. | Todo el foro; abre y cierra el moderador |
-| `meeting_feedback` | Puntaje 1–10, "qué la habría hecho un punto mejor", y los tres vértices del triángulo. | **Solo su autor**; el foro ve promedios |
+| `meeting_feedback` | Puntaje 1–10, "qué la habría hecho un punto mejor", y los tres vértices del triángulo. | Lo cargado desde el celular: **solo su autor** + promedios. Lo dicho en la sala: todo el foro |
 
 ### Decisiones que vale la pena mirar
 
@@ -61,6 +61,15 @@ erDiagram
   el mismo momento (cierre) y la restricción "una respuesta por persona por
   reunión" queda garantizada por la base. El objetivo de "menos de dos minutos"
   es un solo formulario.
+- **Dos formas de cargar el cierre, porque el foro usa las dos.** `source = 'room'`
+  es la ronda en voz alta que anota quien modera: ya se dijo delante de todos, así
+  que se guarda con nombre y la lee el foro entero. `source = 'self'` es cada uno
+  desde su celular: ese puntaje es anónimo y solo lo ve su autor. Una fila por
+  persona por reunión, y **el origen no se puede cambiar después**: convertir un
+  `self` en `room` publicaría algo que se cargó en privado. Si alguien ya cargó
+  el suyo desde el celular, quien toma nota no puede pisarlo.
+- **`meeting_feedback_responded`** dice *quién* respondió, nunca *qué* puso. Es lo
+  que necesita quien toma nota para saber a quién le falta.
 - **`meeting_feedback_summary` es una vista con `security_invoker = false`.** Corre
   con permisos del dueño, saltea la RLS de la tabla base y por eso **no expone
   `member_id`**: solo promedios y cantidad de respuestas. El filtro por membresía
@@ -97,7 +106,7 @@ la UI y en el histórico; **a nivel permisos es igual que `member`**.
 | Lo único que se publica es el titular | `publish_parking_lot_topic()` **copia** el texto del titular a una tabla aparte. El cuerpo del 5% no se referencia ni se expone. Borrar el 5% no borra el titular ya publicado. |
 | El curador ordena pero no reescribe | Trigger `parking_lot_curator_guard`: quien no es el autor solo puede tocar `position`, `status` y `scheduled_meeting_id`. |
 | EQ y IQ no se mezclan | Tipos separados (`agenda_block_kind`, `topic_kind`) y cuadrante (`quadrant`) en todas las tablas donde aparece un tema. |
-| Puntajes anónimos | Cada uno lee solo su fila; el foro lee la vista de promedios. Los comentarios se devuelven sin autor y **recién a partir de 3 respuestas**. |
+| Puntajes anónimos | Lo cargado desde el celular: cada uno lee solo su fila y el foro lee promedios; los comentarios salen **sin autor**. Lo dicho en voz alta en la sala se guarda con nombre, porque ya es público. |
 | Sin exportación masiva ni links públicos | El rol `anon` no tiene ni un permiso (migración 0010). El bucket de fotos es privado (signed URLs). No hay endpoint de export ni de compartir. |
 | Sin logs con contenido del 5% | `one_pagers` guarda la salida, no el prompt ni la respuesta cruda. |
 
@@ -115,13 +124,15 @@ el seed, y corre 15 chequeos. Todos pasan hoy:
 6. Finalizar exige 3 a 5 emociones, causa y significado en los tres pilares.
 7. Publicar al Parking Lot copia el titular y **nada más**; el foro entero lo ve.
 8. La moderadora electa ordena y agenda, pero no reescribe el titular ni el peso ajeno.
-9. La agenda base carga 8 bloques (3 EQ, 1 IQ, 2 breaks, 2 rituales); un miembro
-   no puede editarla ni arrancar el cronómetro; el moderador sí, y el tiempo se
-   acumula del lado del servidor.
+9. La agenda base carga 8 bloques que suman **240 minutos exactos** (3 EQ, 1 IQ,
+   2 breaks, 2 rituales); un miembro no puede editarla ni arrancar el cronómetro;
+   el moderador sí, y el tiempo se acumula del lado del servidor.
 10. La votación no cierra con menos de 5 fechas, no la cierra un miembro, y al
     cerrarla gana la fecha con más disponibles y nace la reunión con su agenda.
-11. Cada uno ve solo su puntaje; el foro ve promedios; los comentarios aparecen
-    recién con 3 respuestas.
+11. Un miembro no puede anotar el puntaje de otro; quien modera sí anota la ronda
+    en voz alta y esas filas las lee el foro con nombre; los puntajes cargados
+    desde el celular siguen siendo invisibles para el resto y sus comentarios
+    salen sin autor; anotar en la sala no puede pisar lo que alguien ya cargó.
 12. El icebreaker recorre todo el catálogo sin repetir y recién ahí empieza otra vuelta.
 13. Cada uno sube su foto solo a su carpeta; el foro las ve.
 14. Nadie se autoasciende de rol; el nombre propio sí se edita.

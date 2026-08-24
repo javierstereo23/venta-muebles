@@ -48,9 +48,10 @@ create trigger touch_agenda_blocks before update on public.agenda_blocks for eac
 
 -- -----------------------------------------------------------------------------
 -- Plantilla base EO (4 h). Configurable: el moderador la edita antes de correrla.
--- Nota: 15 + 45 + 60 + 45 + 45 + 15 + dos breaks de 10 = 245' (4 h 05).
--- El bloque de 90' de la metodologia se guarda partido en EQ (45') e IQ (45')
--- para no mezclar Deep Dive impromptu con temas IQ en un mismo bloque.
+-- Nota: 15 + 45 + 60 + 45 + 40 + 15 + dos breaks de 10 = 240' (4 h exactas).
+-- El bloque de 90' de la metodologia se guarda partido en EQ (45') e IQ (40')
+-- para no mezclar Deep Dive impromptu con temas IQ en un mismo bloque, y los
+-- 5' de diferencia salen de ahi para que el foro termine a la hora prometida.
 -- -----------------------------------------------------------------------------
 
 create or replace function public.apply_agenda_template(p_meeting uuid)
@@ -79,7 +80,7 @@ begin
     (p_meeting, 4, 'Deep Dive planificado',        'Tema Q2 agendado. Experiencia propia, sin consejos.',   'eq',     60),
     (p_meeting, 5, 'Break',                        null,                                                    'break',  10),
     (p_meeting, 6, 'Deep Dive impromptu',          'Tema EQ que surge en la sala.',                          'eq',     45),
-    (p_meeting, 7, 'Temas IQ / brainstorm',        'Que y como: recursos, expertos, accountability.',        'iq',     45),
+    (p_meeting, 7, 'Temas IQ / brainstorm',        'Que y como: recursos, expertos, accountability.',        'iq',     40),
     (p_meeting, 8, 'Rituales de cierre',           'Triangulo de valor, puntaje y cierre.',                  'ritual', 15)
   returning *;
 end;

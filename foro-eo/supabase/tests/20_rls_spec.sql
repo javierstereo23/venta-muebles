@@ -235,8 +235,8 @@ begin
   assert (select count(*) from public.agenda_blocks where meeting_id = 'bbbb0000-0000-4000-8000-000000000001') = 8,
     'la plantilla base carga 8 bloques';
   assert (select sum(duration_minutes) from public.agenda_blocks
-          where meeting_id = 'bbbb0000-0000-4000-8000-000000000001') = 245,
-    'la plantilla base suma 245 minutos (4 h 05 con los dos breaks)';
+          where meeting_id = 'bbbb0000-0000-4000-8000-000000000001') = 240,
+    'la plantilla base suma 240 minutos: cuatro horas exactas con los dos breaks';
   assert (select count(*) from public.agenda_blocks
           where meeting_id = 'bbbb0000-0000-4000-8000-000000000001' and kind = 'eq') = 3,
     'tres bloques EQ';
@@ -370,7 +370,7 @@ $$;
 rollback;
 \echo '    ok'
 
-\echo '--- 11. puntajes anonimos: cada uno ve el suyo, el foro ve promedios'
+\echo '--- 11. puntajes: lo del celular es anonimo, lo de la sala lleva nombre'
 begin;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', :'michael', true) \g /dev/null
@@ -389,17 +389,44 @@ select set_config('request.jwt.claim.sub', :'vicky', true) \g /dev/null
 insert into public.meeting_feedback (meeting_id, overall_score, one_point_better, connection, personal_growth, business_takeaways)
 values (:'m2', 8, 'Cortar los desbordes de tiempo.', 10, 9, 5);
 commit;
+
+\echo '     · un miembro no puede anotar el puntaje de otro'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :'ariel', true) \g /dev/null
+do $$
+begin
+  begin
+    insert into public.meeting_feedback (meeting_id, member_id, source, recorded_by, overall_score)
+    values ('bbbb0000-0000-4000-8000-000000000002', '55555555-5555-4555-8555-555555555555',
+            'room', '44444444-4444-4444-8444-444444444444', 2);
+    raise exception 'FALLO: un miembro anoto el puntaje de otro';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+rollback;
+
+\echo '     · quien modera anota la ronda en voz alta'
 begin;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', :'javier', true) \g /dev/null
+insert into public.meeting_feedback (meeting_id, member_id, source, recorded_by, overall_score, one_point_better, connection, personal_growth, business_takeaways)
+values (:'m1', :'esteban', 'room', :'javier', 6, 'Mas tiempo de Deep Dive.', 7, 6, 5),
+       (:'m1', :'vicky',   'room', :'javier', 9, 'Nada, estuvo muy bien.',   9, 9, 8);
 insert into public.meeting_feedback (meeting_id, overall_score, one_point_better, connection, personal_growth, business_takeaways)
-values (:'m1', 8, 'Nada, estuvo bien.', 8, 8, 8);
-commit;
-begin;
-set local role authenticated;
-select set_config('request.jwt.claim.sub', :'esteban', true) \g /dev/null
-insert into public.meeting_feedback (meeting_id, overall_score, one_point_better, connection, personal_growth, business_takeaways)
-values (:'m1', 6, 'Mas tiempo de Deep Dive.', 7, 6, 5);
+values (:'m1', 8, 'Empezar en hora.', 8, 8, 8);
+do $$
+begin
+  begin
+    insert into public.meeting_feedback (meeting_id, member_id, source, recorded_by, overall_score)
+    values ('bbbb0000-0000-4000-8000-000000000002', '55555555-5555-4555-8555-555555555555',
+            'room', '11111111-1111-4111-8111-111111111111', 3);
+    raise exception 'FALLO: se piso un puntaje ya cargado desde el celular';
+  exception when unique_violation then null;
+  end;
+end;
+$$;
 commit;
 
 begin;
@@ -408,9 +435,16 @@ select set_config('request.jwt.claim.sub', :'esteban', true) \g /dev/null
 do $$
 declare s record;
 begin
-  assert (select count(*) from public.meeting_feedback) = 1, 'cada uno lee solo su propia fila';
-  assert (select count(*) from public.meeting_feedback where overall_score = 9) = 0,
-    'FALLO: se pudo leer el puntaje de otro';
+  -- del celular solo se ve el propio; de la sala se ve todo
+  assert (select count(*) from public.meeting_feedback
+           where meeting_id = 'bbbb0000-0000-4000-8000-000000000002') = 0,
+    'FALLO: se leyeron puntajes anonimos de otros';
+  assert (select count(*) from public.meeting_feedback
+           where meeting_id = 'bbbb0000-0000-4000-8000-000000000001') = 2,
+    'de la reunion de julio: su propia fila de sala y la de Vicky, ambas dichas en voz alta';
+  assert (select count(*) from public.meeting_feedback
+           where meeting_id = 'bbbb0000-0000-4000-8000-000000000001' and source = 'self') = 0,
+    'FALLO: se leyo el puntaje que otro cargo desde el celular';
 
   select * into s from public.meeting_feedback_summary where meeting_id = 'bbbb0000-0000-4000-8000-000000000002';
   assert s.respondents = 3, 'el foro ve cuantos respondieron';
@@ -418,9 +452,17 @@ begin
   assert s.avg_connection = 9.00, 'promedio de conexion';
 
   assert (select count(*) from public.meeting_feedback_notes('bbbb0000-0000-4000-8000-000000000002')) = 3,
-    'con 3 respuestas los comentarios se muestran sin autor';
-  assert (select count(*) from public.meeting_feedback_notes('bbbb0000-0000-4000-8000-000000000001')) = 0,
-    'con menos de 3 respuestas no se muestran comentarios';
+    'los comentarios del celular se leen, sin autor';
+  assert (select count(*) from public.meeting_feedback_notes('bbbb0000-0000-4000-8000-000000000002')
+           where author is not null) = 0,
+    'FALLO: un comentario anonimo salio con nombre';
+  assert (select count(*) from public.meeting_feedback_notes('bbbb0000-0000-4000-8000-000000000001')
+           where author is not null) = 2,
+    'los comentarios dichos en la sala se leen con nombre';
+
+  assert (select count(*) from public.meeting_feedback_responded
+           where meeting_id = 'bbbb0000-0000-4000-8000-000000000002') = 3,
+    'quien toma nota ve quien ya respondio, sin ver que puso';
 end;
 $$;
 rollback;
