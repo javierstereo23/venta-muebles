@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Le avisa al navegador que el tema es oscuro: sin esto los inputs de fecha
+       y el autocompletado salen con fondo blanco y texto blanco encima. */
+    color-scheme: dark;
+    --ink: #08082A;
+    --deep: #101038;
+    --shelf: #181848;
+    --line: #2A2A63;
+    --edge: #6262A8;
+    --focus: #7B87FF;
+    --bone: #EFEDE6;
+    --mute: #9A9AC4;
+  }
+
+  html {
+    background-color: var(--ink);
+    color: var(--bone);
+  }
+
+  body {
+    @apply bg-ink text-bone antialiased;
+  }
+
+  /* Foco de teclado visible en todo control, sin excepciones. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Autocompletado de Chrome: por defecto pinta el fondo de blanco. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--bone);
+    -webkit-box-shadow: 0 0 0 1000px var(--shelf) inset;
+    caret-color: var(--bone);
+  }
+
+  ::selection {
+    background-color: var(--focus);
+    color: var(--ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

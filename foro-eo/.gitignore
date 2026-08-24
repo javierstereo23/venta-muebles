@@ -3,3 +3,8 @@ node_modules/
 .env
 .env.local
 .vercel/
+/test-results/
+/playwright-report/
+/blob-report/
+next-env.d.ts
+*.tsbuildinfo
