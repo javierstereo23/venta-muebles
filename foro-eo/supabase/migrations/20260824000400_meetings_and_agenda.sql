@@ -9,15 +9,20 @@ create table public.meetings (
   forum_id     uuid not null references public.forums(id) on delete cascade,
   title        text,
   scheduled_at timestamptz not null,
+  ends_at      timestamptz,
   location     text,
   status       public.meeting_status not null default 'draft',
   opened_at    timestamptz,
   closed_at    timestamptz,
   created_by   uuid references public.profiles(id) on delete set null,
   created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  constraint meetings_termina_despues check (ends_at is null or ends_at > scheduled_at)
 );
 create index on public.meetings (forum_id, scheduled_at desc);
+
+comment on column public.meetings.ends_at is
+  'Hora de fin acordada. Si no se carga, sale de sumar las duraciones de la agenda.';
 
 create table public.agenda_blocks (
   id                    uuid primary key default gen_random_uuid(),
@@ -54,23 +59,10 @@ create trigger touch_agenda_blocks before update on public.agenda_blocks for eac
 -- 5' de diferencia salen de ahi para que el foro termine a la hora prometida.
 -- -----------------------------------------------------------------------------
 
-create or replace function public.apply_agenda_template(p_meeting uuid)
+create or replace function app.insert_agenda_template(p_meeting uuid)
 returns setof public.agenda_blocks
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare
-  v_forum uuid;
 begin
-  select forum_id into v_forum from public.meetings where id = p_meeting;
-  if v_forum is null then
-    raise exception 'La reunion % no existe.', p_meeting using errcode = '22023';
-  end if;
-  if not app.is_moderator(v_forum) then
-    raise exception 'Solo el moderador puede armar la agenda.' using errcode = '42501';
-  end if;
-  if exists (select 1 from public.agenda_blocks where meeting_id = p_meeting) then
-    raise exception 'La reunion ya tiene agenda cargada.' using errcode = '23505';
-  end if;
-
   return query
   insert into public.agenda_blocks (meeting_id, position, title, description, kind, duration_minutes)
   values
@@ -83,6 +75,76 @@ begin
     (p_meeting, 7, 'Temas IQ / brainstorm',        'Que y como: recursos, expertos, accountability.',        'iq',     40),
     (p_meeting, 8, 'Rituales de cierre',           'Triangulo de valor, puntaje y cierre.',                  'ritual', 15)
   returning *;
+end;
+$$;
+
+create or replace function public.apply_agenda_template(p_meeting uuid)
+returns setof public.agenda_blocks
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_forum uuid;
+begin
+  select forum_id into v_forum from public.meetings where id = p_meeting;
+  if v_forum is null then
+    raise exception 'La reunion % no existe.', p_meeting using errcode = '22023';
+  end if;
+  if not app.is_moderator(v_forum) then
+    raise exception 'Solo el moderador puede armar la agenda.' using errcode = '42501';
+  end if;
+  if exists (select 1 from public.agenda_blocks where meeting_id = p_meeting) then
+    raise exception 'La reunion ya tiene agenda cargada.' using errcode = '23505';
+  end if;
+
+  return query select * from app.insert_agenda_template(p_meeting);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- Horarios de la agenda: cada bloque arranca donde termina el anterior, contando
+-- desde la hora de la reunion. Asi el moderador ve 16:00, 16:15, 16:30... en vez
+-- de tener que hacer la cuenta.
+-- -----------------------------------------------------------------------------
+
+create or replace function app.retime_agenda(p_meeting uuid)
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  with encadenado as (
+    select b.id,
+           m.scheduled_at + make_interval(mins => coalesce(
+             sum(b.duration_minutes) over (
+               order by b.position
+               rows between unbounded preceding and 1 preceding), 0)::int) as inicio
+    from public.agenda_blocks b
+    join public.meetings m on m.id = b.meeting_id
+    where b.meeting_id = p_meeting
+  )
+  update public.agenda_blocks b
+     set planned_start_at = e.inicio
+    from encadenado e
+   where e.id = b.id and b.planned_start_at is distinct from e.inicio;
+end;
+$$;
+
+-- Deja la reunion lista: agenda cargada, horarios encadenados y hora de fin.
+-- La usan tanto el cierre de una votacion como el moderador cuando fija la
+-- fecha a mano.
+create or replace function app.apply_meeting_schedule(p_meeting uuid, p_apply_template boolean default true)
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_minutos int;
+begin
+  if p_apply_template and not exists (select 1 from public.agenda_blocks where meeting_id = p_meeting) then
+    perform app.insert_agenda_template(p_meeting);
+  end if;
+
+  perform app.retime_agenda(p_meeting);
+
+  select sum(duration_minutes) into v_minutos
+  from public.agenda_blocks where meeting_id = p_meeting;
+
+  if v_minutos is not null then
+    update public.meetings
+       set ends_at = coalesce(ends_at, scheduled_at + make_interval(mins => v_minutos))
+     where id = p_meeting;
+  end if;
 end;
 $$;
 

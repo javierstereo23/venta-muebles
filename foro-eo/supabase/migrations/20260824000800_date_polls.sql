@@ -100,9 +100,7 @@ begin
     )
     returning id into v_meeting;
 
-    if p_apply_template then
-      perform public.apply_agenda_template(v_meeting);
-    end if;
+    perform app.apply_meeting_schedule(v_meeting, p_apply_template);
   else
     update public.forums set next_retreat_on = v_winner.proposed_on where id = v_poll.forum_id;
   end if;

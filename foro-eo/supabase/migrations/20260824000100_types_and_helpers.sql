@@ -44,7 +44,8 @@ create type public.parking_status as enum ('open', 'scheduled', 'done', 'archive
 
 create type public.poll_kind as enum ('meeting', 'retreat');
 
-create type public.poll_status as enum ('open', 'closed');
+-- superseded = el moderador fijo la fecha a mano y la votacion quedo sin efecto.
+create type public.poll_status as enum ('open', 'closed', 'superseded');
 
 -- Como se capturo el puntaje de cierre:
 --   self = cada uno desde su celular, anonimo para el resto

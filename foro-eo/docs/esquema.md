@@ -35,7 +35,7 @@ erDiagram
 | `forum_values` | Valores del foro, ordenables. | Miembros; **edita el grupo entero** |
 | `member_allowlist` | Lista blanca de emails. Única puerta de entrada. | Solo el moderador |
 | `profiles` | Miembro: nombre, foto, rol, fecha de ingreso. | Todos los del foro |
-| `meetings` | Reunión: fecha, lugar, estado. | Miembros; edita el moderador |
+| `meetings` | Reunión: fecha de inicio y de fin, lugar, estado. | Miembros; edita el moderador |
 | `agenda_blocks` | Bloques de agenda + estado del cronómetro. | Miembros; edita y corre el moderador |
 | `reflections` | El 5% del mes. | **Solo su autor** |
 | `reflection_pillars` | Trabajo / Familia / Vida personal × (emociones, causa, significado). | **Solo su autor** |
@@ -74,6 +74,16 @@ erDiagram
   con permisos del dueño, saltea la RLS de la tabla base y por eso **no expone
   `member_id`**: solo promedios y cantidad de respuestas. El filtro por membresía
   es la barrera entre foros.
+- **La votación no es el único camino a una fecha.** `schedule_meeting()` deja al
+  moderador fijar la fecha a mano en cualquier momento: a veces se cierra en la
+  sala, por teléfono, o el lugar tiene una sola fecha libre. Cuando lo hace, la
+  votación abierta pasa a `superseded` y apunta a la reunión que la reemplazó,
+  en vez de quedar colgada esperando un cierre que no va a llegar. Lo votado no
+  se borra: las fechas propuestas y quién podía quedan guardadas.
+- **La agenda calcula sus horarios.** `app.retime_agenda()` encadena cada bloque
+  desde la hora de la reunión, así el moderador ve 16:00, 16:15, 16:30… en vez de
+  hacer la cuenta. `meetings.ends_at` sale de sumar las duraciones si no se carga
+  a mano, y con la plantilla base la agenda termina exactamente a esa hora.
 - **La disponibilidad de fechas no es anónima** (coordinar requiere saber quién
   puede). Lo anónimo son los puntajes.
 
@@ -137,6 +147,13 @@ el seed, y corre 15 chequeos. Todos pasan hoy:
 13. Cada uno sube su foto solo a su carpeta; el foro las ve.
 14. Nadie se autoasciende de rol; el nombre propio sí se edita.
 15. Un foro vecino no ve absolutamente nada del otro.
+16. Un miembro no puede fijar la fecha; el moderador sí, aunque la votación siga
+    abierta: la reunión nace con la agenda base, los bloques arrancan a la hora
+    que corresponde (16:00 el primero, 19:45 el cierre) y la votación abierta
+    queda sin efecto apuntando a la reunión nueva. Una reunión que termina antes
+    de empezar se rechaza.
+17. El seed deja cargado el foro de noviembre: 2/11 de 16 a 20 en Hit Polo, con
+    las cuatro horas de agenda y los horarios ya calculados.
 
 **Lo que no se probó todavía:** el comportamiento real de Supabase Auth (magic
 link, `shouldCreateUser: false`), Storage con archivos de verdad, y la

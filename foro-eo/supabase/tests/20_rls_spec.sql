@@ -563,5 +563,93 @@ $$;
 rollback;
 \echo '    ok'
 
+\echo '--- 16. el moderador fija la fecha sin esperar a que cierre la votacion'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :'michael', true) \g /dev/null
+do $$
+begin
+  begin
+    perform public.schedule_meeting(
+      '00000000-0000-4000-8000-000000000001',
+      timestamptz '2026-12-07 16:00-03');
+    raise exception 'FALLO: un miembro fijo la fecha del foro';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+rollback;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :'javier', true) \g /dev/null
+do $$
+declare m public.meetings; b record;
+begin
+  -- hay una votacion abierta sin las 5 fechas: nunca va a poder cerrarse
+  assert (select count(*) from public.date_polls
+           where kind = 'meeting' and status = 'open') > 0, 'deberia haber una votacion abierta';
+
+  begin
+    perform public.schedule_meeting(
+      '00000000-0000-4000-8000-000000000001',
+      timestamptz '2026-12-07 16:00-03',
+      timestamptz '2026-12-07 15:00-03');
+    raise exception 'FALLO: acepto una reunion que termina antes de empezar';
+  exception when check_violation then null;
+  end;
+
+  m := public.schedule_meeting(
+    p_forum     => '00000000-0000-4000-8000-000000000001',
+    p_starts_at => timestamptz '2026-12-07 16:00-03',
+    p_ends_at   => timestamptz '2026-12-07 20:00-03',
+    p_location  => 'Hit Polo');
+
+  assert m.status = 'scheduled', 'la reunion queda agendada';
+  assert m.location = 'Hit Polo', 'con su lugar';
+  assert m.ends_at = timestamptz '2026-12-07 20:00-03', 'y su hora de fin';
+  assert (select count(*) from public.agenda_blocks where meeting_id = m.id) = 8,
+    'nace con la agenda base';
+
+  select * into b from public.agenda_blocks where meeting_id = m.id and position = 1;
+  assert b.planned_start_at = timestamptz '2026-12-07 16:00-03', 'el primer bloque arranca a las 16';
+  select * into b from public.agenda_blocks where meeting_id = m.id and position = 8;
+  assert b.planned_start_at = timestamptz '2026-12-07 19:45-03', 'el cierre arranca 19:45';
+  assert b.planned_start_at + make_interval(mins => b.duration_minutes) = m.ends_at,
+    'la agenda termina exactamente a la hora de fin';
+
+  assert (select count(*) from public.date_polls
+           where kind = 'meeting' and status = 'open') = 0,
+    'la votacion abierta queda sin efecto, no colgada';
+  assert (select count(*) from public.date_polls
+           where status = 'superseded' and resulting_meeting_id = m.id) > 0,
+    'y queda apuntada a la reunion que la reemplazo';
+end;
+$$;
+rollback;
+\echo '    ok'
+
+\echo '--- 17. el seed deja cargado el foro de noviembre'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :'ariel', true) \g /dev/null
+do $$
+declare m public.meetings; b record;
+begin
+  select * into m from public.meetings
+   where forum_id = '00000000-0000-4000-8000-000000000001'
+     and scheduled_at = timestamptz '2026-11-02 16:00-03';
+  assert m.id is not null, 'deberia estar el foro del 2 de noviembre';
+  assert m.location = 'Hit Polo', 'en Hit Polo';
+  assert m.ends_at = timestamptz '2026-11-02 20:00-03', 'de 16 a 20';
+  assert (select sum(duration_minutes) from public.agenda_blocks where meeting_id = m.id) = 240,
+    'con las cuatro horas de agenda';
+  select * into b from public.agenda_blocks where meeting_id = m.id and position = 1;
+  assert b.planned_start_at = m.scheduled_at, 'y los horarios ya calculados';
+end;
+$$;
+rollback;
+\echo '    ok'
+
 \echo ''
 \echo 'TODOS LOS CHEQUEOS PASARON'
