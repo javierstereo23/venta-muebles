@@ -638,10 +638,10 @@ declare m public.meetings; b record;
 begin
   select * into m from public.meetings
    where forum_id = '00000000-0000-4000-8000-000000000001'
-     and scheduled_at = timestamptz '2026-11-02 16:00-03';
-  assert m.id is not null, 'deberia estar el foro del 2 de noviembre';
+     and scheduled_at = timestamptz '2026-11-03 16:00-03';
+  assert m.id is not null, 'deberia estar el foro del 3 de noviembre';
   assert m.location = 'Hit Polo', 'en Hit Polo';
-  assert m.ends_at = timestamptz '2026-11-02 20:00-03', 'de 16 a 20';
+  assert m.ends_at = timestamptz '2026-11-03 20:00-03', 'de 16 a 20';
   assert (select sum(duration_minutes) from public.agenda_blocks where meeting_id = m.id) = 240,
     'con las cuatro horas de agenda';
   select * into b from public.agenda_blocks where meeting_id = m.id and position = 1;

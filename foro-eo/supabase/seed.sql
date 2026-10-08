@@ -49,13 +49,13 @@ where not exists (
 );
 
 -- -----------------------------------------------------------------------------
--- Proxima reunion ya fijada por el moderador: lunes 2 de noviembre de 2026,
+-- Proxima reunion ya fijada por el moderador: martes 3 de noviembre de 2026,
 -- 16 a 20, en Hit Polo. Se carga con la agenda base y los horarios encadenados.
 -- -----------------------------------------------------------------------------
 do $$
 declare
   v_forum   uuid := '00000000-0000-4000-8000-000000000001';
-  v_inicio  timestamptz := timestamptz '2026-11-02 16:00-03';
+  v_inicio  timestamptz := timestamptz '2026-11-03 16:00-03';
   v_meeting uuid;
 begin
   select id into v_meeting
@@ -64,7 +64,7 @@ begin
 
   if v_meeting is null then
     insert into public.meetings (forum_id, title, scheduled_at, ends_at, location, status)
-    values (v_forum, 'Foro de noviembre', v_inicio, timestamptz '2026-11-02 20:00-03',
+    values (v_forum, 'Foro de noviembre', v_inicio, timestamptz '2026-11-03 20:00-03',
             'Hit Polo', 'scheduled')
     returning id into v_meeting;
 

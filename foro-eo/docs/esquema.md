@@ -152,7 +152,7 @@ el seed, y corre 15 chequeos. Todos pasan hoy:
     que corresponde (16:00 el primero, 19:45 el cierre) y la votación abierta
     queda sin efecto apuntando a la reunión nueva. Una reunión que termina antes
     de empezar se rechaza.
-17. El seed deja cargado el foro de noviembre: 2/11 de 16 a 20 en Hit Polo, con
+17. El seed deja cargado el foro de noviembre: 3/11 de 16 a 20 en Hit Polo, con
     las cuatro horas de agenda y los horarios ya calculados.
 
 **Lo que no se probó todavía:** el comportamiento real de Supabase Auth (magic
