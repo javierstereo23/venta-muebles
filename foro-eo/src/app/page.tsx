@@ -6,6 +6,7 @@ import { Avatar } from '@/components/Avatar'
 import { Cornerstones } from '@/components/Cornerstones'
 import { CuentaRegresiva } from '@/components/CuentaRegresiva'
 import { LineaDeFlotacion } from '@/components/LineaDeFlotacion'
+import { ReservaDeSede } from '@/components/ReservaDeSede'
 import { FormularioFecha } from './reunion/FormularioFecha'
 import { aValorFecha, diaYFecha, hora, rangoHorario, ZONA } from '@/lib/fechas'
 import { esModerador } from '@/lib/roles'
@@ -86,6 +87,10 @@ export default async function PaginaInicio() {
               Todavía no hay fecha para el próximo foro.
             </p>
           )}
+
+          {puedeFijar && reunion ? (
+            <ReservaDeSede reunion={reunion} responsable={perfil} miembros={miembros} />
+          ) : null}
 
           {puedeFijar ? (
             <FormularioFecha

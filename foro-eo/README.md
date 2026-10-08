@@ -77,3 +77,8 @@ nunca** a Supabase.
 - Sin exportación masiva, sin analytics de terceros, sin logs con contenido del 5%.
 - El asistente corre siempre del lado del servidor y nunca recibe el 5% de otra persona.
 - Las fotos viven en un bucket privado y se sirven con URLs firmadas de una hora.
+- La única salida hacia afuera es el formulario de reserva de la sede, y está
+  acotada por tipo (`DatosReserva` en `src/lib/sedes.ts`): fecha, horario,
+  cuántos van, responsable y participantes. La app no lo envía: deja el
+  formulario precargado y lo manda una persona. Antes de abrirlo, la pantalla
+  muestra exactamente qué se va a mandar.

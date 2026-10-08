@@ -9,6 +9,11 @@
  * El mapeo de campos (`entry.<id>`) sale de abrir el formulario y mirar el
  * HTML: cada pregunta tiene su propio id. Está acá y no en la base porque es
  * configuración pública y de una sola sede; si mañana hay varias, se mueve.
+ *
+ * Los nombres y emails de los otros siete son datos de ellos, no del foro: solo
+ * viajan si el formulario tiene una pregunta mapeada a `participantes` o a
+ * `participantesEmails`. Antes de abrirlo, la pantalla muestra exactamente qué
+ * se va a mandar.
  */
 
 export interface DatosReserva {
@@ -18,6 +23,10 @@ export interface DatosReserva {
   personas: number
   responsable: string
   email: string
+  /** Los nombres de quienes van, uno por línea. */
+  participantes: string
+  /** Los emails de quienes van, separados por coma. */
+  participantesEmails: string
 }
 
 export interface FormularioSede {
@@ -98,4 +107,52 @@ export function envioDirecto(
     url: `https://docs.google.com/forms/d/e/${sede.formId}/formResponse`,
     cuerpo,
   }
+}
+
+export interface Participante {
+  full_name: string
+  email: string
+}
+
+/** Arma los datos de la reserva a partir de la reunión y de quiénes van. */
+export function datosDeReserva(
+  reunion: { fecha: string; desde: string; hasta: string },
+  responsable: Participante,
+  participantes: Participante[],
+): DatosReserva {
+  return {
+    fecha: reunion.fecha,
+    desde: reunion.desde,
+    hasta: reunion.hasta,
+    personas: participantes.length,
+    responsable: responsable.full_name,
+    email: responsable.email,
+    participantes: participantes.map((p) => p.full_name).join('\n'),
+    participantesEmails: participantes.map((p) => p.email).join(', '),
+  }
+}
+
+/** Qué se va a mandar, en castellano, para mostrarlo antes de abrir el link. */
+export const NOMBRE_DEL_DATO: Record<keyof DatosReserva, string> = {
+  fecha: 'Fecha',
+  desde: 'Hora de inicio',
+  hasta: 'Hora de fin',
+  personas: 'Cantidad de personas',
+  responsable: 'Responsable',
+  email: 'Email del responsable',
+  participantes: 'Nombre de cada participante',
+  participantesEmails: 'Email de cada participante',
+}
+
+export function resumenDeLoQueSeManda(
+  sede: FormularioSede,
+  datos: DatosReserva,
+): { etiqueta: string; valor: string }[] {
+  return paresDelFormulario(sede, datos)
+    .map(([entry, valor]) => {
+      const dato = (Object.keys(sede.campos) as (keyof DatosReserva)[]).find(
+        (k) => sede.campos[k] === entry,
+      )
+      return { etiqueta: dato ? NOMBRE_DEL_DATO[dato] : 'Dato fijo del formulario', valor }
+    })
 }

@@ -24,6 +24,8 @@ const DATOS: DatosReserva = {
   personas: 8,
   responsable: 'Javier Badaracco',
   email: 'javier@dynamo.tech',
+  participantes: 'Javier Badaracco\nAriel Arrieta',
+  participantesEmails: 'javier@dynamo.tech, ariel@ejemplo.com',
 }
 
 describe('formulario de la sede', () => {
@@ -70,5 +72,49 @@ describe('formulario de la sede', () => {
     expect(sedeDeclarada('Hit Polo')).not.toBeNull()
     expect(estaConfigurada(sedeDeclarada('Hit Polo')!)).toBe(false)
     expect(formularioDeSede('Hit Polo')).toBeNull()
+  })
+})
+
+describe('participantes', () => {
+  const GENTE = [
+    { full_name: 'Javier Badaracco', email: 'javier@dynamo.tech' },
+    { full_name: 'Ariel Arrieta', email: 'ariel@ejemplo.com' },
+  ]
+
+  it('arma la lista de quienes van', async () => {
+    const { datosDeReserva } = await import('@/lib/sedes')
+    const datos = datosDeReserva(
+      { fecha: '2026-11-03', desde: '16:00', hasta: '20:00' },
+      GENTE[0]!,
+      GENTE,
+    )
+    expect(datos.personas).toBe(2)
+    expect(datos.participantes).toBe('Javier Badaracco\nAriel Arrieta')
+    expect(datos.participantesEmails).toBe('javier@dynamo.tech, ariel@ejemplo.com')
+  })
+
+  it('los datos de los demás no viajan si el formulario no los pide', async () => {
+    const { datosDeReserva, paresDelFormulario } = await import('@/lib/sedes')
+    const datos = datosDeReserva(
+      { fecha: '2026-11-03', desde: '16:00', hasta: '20:00' },
+      GENTE[0]!,
+      GENTE,
+    )
+    // SEDE no mapea participantes ni participantesEmails
+    const enviado = JSON.stringify(paresDelFormulario(SEDE, datos))
+    expect(enviado).not.toContain('Ariel')
+    expect(enviado).not.toContain('@')
+  })
+
+  it('el resumen dice en castellano qué se va a mandar', async () => {
+    const { datosDeReserva, resumenDeLoQueSeManda } = await import('@/lib/sedes')
+    const datos = datosDeReserva(
+      { fecha: '2026-11-03', desde: '16:00', hasta: '20:00' },
+      GENTE[0]!,
+      GENTE,
+    )
+    const resumen = resumenDeLoQueSeManda(SEDE, datos)
+    expect(resumen).toContainEqual({ etiqueta: 'Fecha', valor: '2026-11-03' })
+    expect(resumen).toContainEqual({ etiqueta: 'Responsable', valor: 'Javier Badaracco' })
   })
 })
