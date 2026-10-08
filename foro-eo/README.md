@@ -6,7 +6,7 @@ Aplicación del Foro EO Buenos Aires.
 |---|---|
 | Esquema de base + RLS | ✅ implementado y probado contra un Postgres real |
 | 5.1 Autenticación y miembros | ✅ implementado — falta probarlo contra un proyecto Supabase real |
-| 5.2 Inicio | pendiente |
+| 5.2 Inicio | ✅ implementado — falta probarlo contra un proyecto Supabase real |
 | 5.3 Agenda y cronómetro | base de datos lista, UI pendiente |
 | 5.4 5% Reflections + one-pager | base de datos lista, UI pendiente |
 | 5.5 Parking Lot | base de datos lista, UI pendiente |
@@ -20,7 +20,7 @@ foro-eo/
 ├── src/
 │   ├── app/            rutas (App Router)
 │   ├── components/     primitivas de UI
-│   ├── lib/            clientes de Supabase, sesión, roles, contraste
+│   ├── lib/            clientes de Supabase, sesión, roles, fechas, contraste
 │   └── middleware.ts   sin sesión no se ve ninguna ruta
 ├── supabase/
 │   ├── migrations/     10 migraciones

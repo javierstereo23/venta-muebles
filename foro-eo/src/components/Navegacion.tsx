@@ -5,6 +5,7 @@ import type { Perfil } from '@/lib/tipos-db'
 const ENLACES = [
   { href: '/', texto: 'Inicio' },
   { href: '/miembros', texto: 'Miembros' },
+  { href: '/valores', texto: 'Valores' },
   { href: '/perfil', texto: 'Mi perfil' },
 ]
 
